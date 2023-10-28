@@ -1,4 +1,3 @@
-(require 'dom)
 (require 'url)
 (require 'esxml-query)
 
