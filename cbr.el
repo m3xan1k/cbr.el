@@ -3,10 +3,20 @@
 
 (defconst cbr-url "https://www.cbr.ru/currency_base/daily/")
 
-(defun print-elements-of-list (list)
-  (while list
-    (message (car list))
-    (setq list (cdr list))))
+(defun m3xan1k-cbr--rate-to-float (rate)
+  (string-to-number
+   (replace-regexp-in-string "\," "\." rate)))
+
+(defun m3xan1k-cbr--html-to-rows (html)
+  (let ((rows (esxml-query-all ".data > tbody > tr" html)))
+    (cdr rows)))
+
+(defun m3xan1k-cbr--process-row (row)
+  (let* ((currency-code (elt (elt row 1) 2))
+	 (currency-nominal (string-to-number (elt (elt row 2) 2)))
+	 (currency-rate (m3xan1k-cbr--rate-to-float (elt (elt row 4) 2)))
+	 (final-rate (/ (* currency-rate 1.0) currency-nominal)))
+    (cons currency-code final-rate)))
 
 (url-retrieve
  cbr-url
@@ -14,13 +24,12 @@
    (goto-char url-http-end-of-headers)
    (forward-line 1)
    (let* ((html (libxml-parse-html-region (point) (point-max)))
-	  (rows (esxml-query-all ".data > tbody > tr" html))
-	  (rows (cdr rows)))
+	  (rows (m3xan1k-cbr--html-to-rows html))
+	  (currency-map (make-hash-table :test 'equal)))
      (while rows
-       (let* ((data (vconcat [] (esxml-query-all "td" (car rows))))
-	      (code (elt (elt data 1) 2))
-	      (nominal (string-to-number (elt (elt data 2) 2)))
-	      (value (string-to-number (replace-regexp-in-string "\," "\." (elt (elt data 4) 2))))
-	      (result (number-to-string (/ (* value 1.0) nominal))))
-	 (message (format "%s %s" code result)))
+       (let* ((row (vconcat [] (esxml-query-all "td" (car rows))))
+	      (code-rate-pair (m3xan1k-cbr--process-row row)))
+	 (progn
+	   (puthash (car code-rate-pair) (format "%.2f" (cdr code-rate-pair)) currency-map)
+	   (print (equal (gethash (car code-rate-pair) currency-map) (format "%.2f" (cdr code-rate-pair))))))
        (setq rows (cdr rows))))))
