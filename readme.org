@@ -1,0 +1,12 @@
+
+* cbr.el
+  Get cbr.ru currency rates inside emacs
+
+* Install
+  (require 'cbr)
+
+** Dependencies
+   (use-package esxml)
+
+* Command
+  M-x cbr-get-rate RET <currency-code>
